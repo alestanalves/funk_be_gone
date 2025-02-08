@@ -1,22 +1,49 @@
-from machine import SPI, Pin
-from nrf24l01 import NRF24L01
+# Código do receptor
+import RPi.GPIO as GPIO
+from lib_nrf24 import NRF24
+import time
+import spidev
 
-# Configuração do SPI
-spi = SPI(0,
-          baudrate=1000000,
-          polarity=0,
-          phase=0,
-          sck=Pin(6),
-          mosi=Pin(7),
-          miso=Pin(4))
+# Mesma configuração de pinos
+CE_PIN = 2
+CSN_PIN = 5
+SCK_PIN = 6
+MOSI_PIN = 7
+MISO_PIN = 4
 
-# Configuração dos pinos
-csn = Pin(5, mode=Pin.OUT, value=1)
-ce = Pin(2, mode=Pin.OUT, value=0)
+GPIO.setmode(GPIO.BCM)
+pipes = [[0xF0, 0xF0, 0xF0, 0xF0, 0xE1], [0xE8, 0xE8, 0xF0, 0xF0, 0xE1]]
+
+spi = spidev.SpiDev()
+spi.open(0, 0)
+spi.max_speed_hz = 1000000
+
+radio = NRF24(GPIO, spi)
+radio.begin(CE_PIN, CSN_PIN)
+
+radio.setPayloadSize(32)
+radio.setChannel(0x76)
+radio.setDataRate(NRF24.BR_1MBPS)
+radio.setPALevel(NRF24.PA_MIN)
+radio.setAutoAck(True)
+radio.enableDynamicPayloads()
+radio.enableAckPayload()
+
+radio.openWritingPipe(pipes[0])
+radio.openReadingPipe(1, pipes[1])
+radio.printDetails()
+radio.startListening()
 
 try:
-    # Tenta criar uma instância do NRF24L01
-    nrf = NRF24L01(spi, csn, ce)
-    print("Biblioteca instalada com sucesso!")
-except Exception as e:
-    print("Erro:", e)
+    print("Receptor iniciado. Aguardando mensagens...")
+    while True:
+        if radio.available():
+            recebido = []
+            radio.read(recebido, radio.getDynamicPayloadSize())
+            print("Recebido:", "".join(map(chr, filter(None, recebido))))
+        time.sleep(0.1)
+except KeyboardInterrupt:
+    print("\nPrograma interrompido pelo usuário")
+finally:
+    GPIO.cleanup()
+    spi.close()
