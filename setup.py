@@ -3,7 +3,7 @@ from lib_nrf24 import NRF24
 import time
 import spidev
 
-# Mapeamento dos pinos BCM para os pinos GP que você está usando
+# Mapeamento dos pinos
 CE_PIN = 2    # GP2
 CSN_PIN = 5   # GP5
 SCK_PIN = 6   # GP6
@@ -21,20 +21,20 @@ spi.max_speed_hz = 1000000
 
 # Configuração do rádio
 radio = NRF24(GPIO, spi)
-radio.begin(CE_PIN, CSN_PIN)  # Usando os novos pinos CE e CSN
+radio.begin(CE_PIN, CSN_PIN)
 
-# Configurações básicas
-radio.setPayloadSize(32)
-radio.setChannel(0x76)
-radio.setDataRate(NRF24.BR_1MBPS)
-radio.setPALevel(NRF24.PA_MIN)
-radio.setAutoAck(True)
-radio.enableDynamicPayloads()
-radio.enableAckPayload()
+# Configurações básicas - com nomes corrigidos
+radio.set_payload_size(32)  # Corrigido de setPayloadSize
+radio.set_channel(0x76)     # Corrigido de setChannel
+radio.set_data_rate(NRF24.BR_1MBPS)  # Corrigido de setDataRate
+radio.set_pa_level(NRF24.PA_MIN)     # Corrigido de setPALevel
 
-radio.openWritingPipe(pipes[0])
-radio.openReadingPipe(1, pipes[1])
-radio.printDetails()
+# Configurar endereços para escrita e leitura
+radio.write_register(radio.RX_ADDR_P0, pipes[0])
+radio.write_register(radio.TX_ADDR, pipes[0])
+
+# Configurar tamanho do payload para pipe 0
+radio.write_register(radio.RX_PW_P0, 32)
 
 def enviar_mensagem():
     message = list("Teste!")
@@ -45,43 +45,32 @@ def enviar_mensagem():
     print("Mensagem enviada:", "".join(message))
 
 def receber_mensagem():
-    radio.startListening()
-    
-    while True:
-        if radio.available():
-            recebido = []
-            radio.read(recebido, radio.getDynamicPayloadSize())
-            print("Recebido:", "".join(map(chr, recebido)))
-        time.sleep(1)
+    if radio.available():
+        recebido = radio.read(radio.get_payload_size())  # Corrigido de getDynamicPayloadSize
+        print("Recebido:", "".join(map(chr, filter(None, recebido))))
 
 # Script de teste
-def test_connection():
-    try:
-        print("Iniciando teste do módulo NRF24L01...")
-        print("\nConexões utilizadas:")
-        print("VCC  -> 3.3V")
-        print("GND  -> GND")
-        print(f"CE   -> GP{CE_PIN}")
-        print(f"CSN  -> GP{CSN_PIN}")
-        print(f"SCK  -> GP{SCK_PIN}")
-        print(f"MOSI -> GP{MOSI_PIN}")
-        print(f"MISO -> GP{MISO_PIN}")
-        
-        radio.printDetails()
-        return True
-    except Exception as e:
-        print("Erro na conexão:", e)
-        return False
+try:
+    print("Iniciando teste do módulo NRF24L01...")
+    print("\nConexões utilizadas:")
+    print("VCC  -> 3.3V")
+    print("GND  -> GND")
+    print(f"CE   -> GP{CE_PIN}")
+    print(f"CSN  -> GP{CSN_PIN}")
+    print(f"SCK  -> GP{SCK_PIN}")
+    print(f"MOSI -> GP{MOSI_PIN}")
+    print(f"MISO -> GP{MISO_PIN}")
+    
+    radio.print_details()
+    
+    print("\nIniciando envio de mensagens de teste...")
+    while True:
+        enviar_mensagem()
+        time.sleep(1)
+        receber_mensagem()
 
-if __name__ == "__main__":
-    try:
-        test_connection()
-        print("\nIniciando envio de mensagens de teste...")
-        while True:
-            enviar_mensagem()
-            time.sleep(1)
-    except KeyboardInterrupt:
-        print("\nPrograma interrompido pelo usuário")
-    finally:
-        GPIO.cleanup()
-        spi.close()
+except KeyboardInterrupt:
+    print("\nPrograma interrompido pelo usuário")
+finally:
+    GPIO.cleanup()
+    spi.close()
