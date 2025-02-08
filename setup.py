@@ -56,10 +56,37 @@ def jam_all():
     else:
         jam_ble()
 
+def verificar_radio():
+    """Verifica se o módulo NRF24 está funcionando corretamente."""
+    print("Verificando módulo NRF24...")
+
+    # Verifica a comunicação SPI
+    setup_status = radio.is_chip_connected()
+    if setup_status:
+        print("Módulo NRF24 conectado corretamente.")
+    else:
+        print("Erro: Módulo NRF24 não está conectado ou não responde.")
+
+    # Verifica detalhes do rádio
+    radio.print_details()
+
+    # Teste de leitura/escrita de registro
+    try:
+        radio.write_register(NRF24.CONFIG, 0x0A)
+        config_value = radio.read_register(NRF24.CONFIG)
+        if config_value == 0x0A:
+            print("Teste de escrita/leitura no registro CONFIG bem-sucedido.")
+        else:
+            print("Erro: Falha na verificação de escrita/leitura no registro CONFIG.")
+    except Exception as e:
+        print(f"Erro durante a verificação do rádio: {e}")
+
 # Script principal
 try:
     print("Iniciando jamming com o módulo NRF24L01...")
-    radio.print_details()
+
+    # Verificação inicial do rádio
+    verificar_radio()
 
     while True:
         # Alterna entre diferentes modos de jamming
