@@ -60,15 +60,15 @@ def verificar_radio():
     """Verifica se o módulo NRF24 está funcionando corretamente."""
     print("Verificando módulo NRF24...")
 
-    # Verifica a comunicação SPI
-    setup_status = radio.is_chip_connected()
-    if setup_status:
-        print("Módulo NRF24 conectado corretamente.")
-    else:
-        print("Erro: Módulo NRF24 não está conectado ou não responde.")
+    # Leitura do registro STATUS
+    status = radio.get_status()
+    print(f"Registro STATUS: 0x{status:02X}")
 
-    # Verifica detalhes do rádio
-    radio.print_details()
+    # Verifica se o valor é válido (o valor padrão deve estar entre 0x0E e 0x0F)
+    if status & 0x0E == 0x0E:
+        print("Módulo NRF24 conectado e respondendo corretamente.")
+    else:
+        print("Aviso: O registro STATUS não indica uma resposta correta. Verifique as conexões.")
 
     # Teste de leitura/escrita de registro
     try:
