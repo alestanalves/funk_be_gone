@@ -2,6 +2,7 @@ import RPi.GPIO as GPIO
 from lib_nrf24 import NRF24
 import time
 import spidev
+import random
 
 # Mapeamento dos pinos
 CE_PIN = 2    # GP2
@@ -12,7 +13,6 @@ MISO_PIN = 4  # GP4
 
 # Configuração dos pinos
 GPIO.setmode(GPIO.BCM)
-pipes = [[0xE8, 0xE8, 0xF0, 0xF0, 0xE1], [0xF0, 0xF0, 0xF0, 0xF0, 0xE1]]
 
 # Configuração do SPI
 spi = spidev.SpiDev()
@@ -25,74 +25,54 @@ radio.begin(CE_PIN, CSN_PIN)
 
 # Configurações básicas
 radio.set_payload_size(32)
-radio.set_channel(0x76)
+radio.set_channel(0x76)  # Canal inicial
 radio.set_data_rate(NRF24.BR_1MBPS)
-radio.set_pa_level(NRF24.PA_MIN)
+radio.set_pa_level(NRF24.PA_MAX)
 
-# Configurar endereços para escrita e leitura
-radio.write_register(radio.RX_ADDR_P0, pipes[0])
-radio.write_register(radio.TX_ADDR, pipes[0])
+# Canais disponíveis para jamming
+bluetooth_channels = [32, 34, 46, 48, 50, 52, 0, 1, 2, 4, 6, 8, 22, 24, 26, 28, 30, 74, 76, 78, 80]
+ble_channels = [2, 26, 80]
 
-# Configurar tamanho do payload para pipe 0
-radio.write_register(radio.RX_PW_P0, 32)
+def configure_radio(channel):
+    """Configura o rádio para um canal específico."""
+    radio.set_channel(channel)
 
-def enviar_mensagem():
-    try:
-        # Criando a mensagem como lista de bytes
-        message = [ord(c) for c in "Teste!"]
-        
-        # Verificação de tamanho
-        if len(message) > 32:
-            print("Aviso: Mensagem truncada para 32 bytes")
-            message = message[:32]
-        else:
-            # Preenchendo o resto do payload com zeros
-            message.extend([0] * (32 - len(message)))
-        
-        # Verificação de valores
-        for i, val in enumerate(message):
-            if not isinstance(val, int):
-                message[i] = 0
-                print(f"Aviso: Valor inválido na posição {i}")
-        
-        # Debug - mostra os valores antes do envio
-        print("Valores hexadecimais:", [hex(x) for x in message])
-        print("Valores decimais:", message)
-        
-        # Envio da mensagem
-        radio.write(message)
-        print("Mensagem enviada:", "".join(chr(x) for x in message if x != 0))
-        
-    except Exception as e:
-        print(f"Erro ao enviar mensagem: {e}")
+def jam_ble():
+    """Jamming em canais BLE."""
+    channel = random.choice(ble_channels)
+    print(f"Jamming BLE no canal {channel}")
+    configure_radio(channel)
 
-def receber_mensagem():
-    if radio.available():
-        # Lendo a mensagem
-        recebido = radio.read(radio.get_payload_size())
-        # Convertendo bytes para string, removendo zeros
-        mensagem = "".join(chr(x) for x in recebido if x != 0)
-        print("Recebido:", mensagem)
+def jam_bluetooth():
+    """Jamming em canais Bluetooth."""
+    channel = random.choice(bluetooth_channels)
+    print(f"Jamming Bluetooth no canal {channel}")
+    configure_radio(channel)
+
+def jam_all():
+    """Jamming em canais Bluetooth e BLE aleatoriamente."""
+    if random.choice([True, False]):
+        jam_bluetooth()
+    else:
+        jam_ble()
 
 # Script principal
 try:
-    print("Iniciando teste do módulo NRF24L01...")
-    print("\nConexões utilizadas:")
-    print("VCC  -> 3.3V")
-    print("GND  -> GND")
-    print(f"CE   -> GP{CE_PIN}")
-    print(f"CSN  -> GP{CSN_PIN}")
-    print(f"SCK  -> GP{SCK_PIN}")
-    print(f"MOSI -> GP{MOSI_PIN}")
-    print(f"MISO -> GP{MISO_PIN}")
-    
+    print("Iniciando jamming com o módulo NRF24L01...")
     radio.print_details()
-    
-    print("\nIniciando envio de mensagens de teste...")
+
     while True:
-        enviar_mensagem()
+        # Alterna entre diferentes modos de jamming
+        mode = random.choice(["ble", "bluetooth", "all"])
+        if mode == "ble":
+            jam_ble()
+        elif mode == "bluetooth":
+            jam_bluetooth()
+        elif mode == "all":
+            jam_all()
+
+        # Aguarda 1 segundo antes de repetir
         time.sleep(1)
-        receber_mensagem()
 
 except KeyboardInterrupt:
     print("\nPrograma interrompido pelo usuário")
