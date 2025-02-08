@@ -23,11 +23,11 @@ spi.max_speed_hz = 1000000
 radio = NRF24(GPIO, spi)
 radio.begin(CE_PIN, CSN_PIN)
 
-# Configurações básicas - com nomes corrigidos
-radio.set_payload_size(32)  # Corrigido de setPayloadSize
-radio.set_channel(0x76)     # Corrigido de setChannel
-radio.set_data_rate(NRF24.BR_1MBPS)  # Corrigido de setDataRate
-radio.set_pa_level(NRF24.PA_MIN)     # Corrigido de setPALevel
+# Configurações básicas
+radio.set_payload_size(32)
+radio.set_channel(0x76)
+radio.set_data_rate(NRF24.BR_1MBPS)
+radio.set_pa_level(NRF24.PA_MIN)
 
 # Configurar endereços para escrita e leitura
 radio.write_register(radio.RX_ADDR_P0, pipes[0])
@@ -37,19 +37,44 @@ radio.write_register(radio.TX_ADDR, pipes[0])
 radio.write_register(radio.RX_PW_P0, 32)
 
 def enviar_mensagem():
-    message = list("Teste!")
-    while len(message) < 32:
-        message.append(0)
-    
-    radio.write(message)
-    print("Mensagem enviada:", "".join(message))
+    try:
+        # Criando a mensagem como lista de bytes
+        message = [ord(c) for c in "Teste!"]
+        
+        # Verificação de tamanho
+        if len(message) > 32:
+            print("Aviso: Mensagem truncada para 32 bytes")
+            message = message[:32]
+        else:
+            # Preenchendo o resto do payload com zeros
+            message.extend([0] * (32 - len(message)))
+        
+        # Verificação de valores
+        for i, val in enumerate(message):
+            if not isinstance(val, int):
+                message[i] = 0
+                print(f"Aviso: Valor inválido na posição {i}")
+        
+        # Debug - mostra os valores antes do envio
+        print("Valores hexadecimais:", [hex(x) for x in message])
+        print("Valores decimais:", message)
+        
+        # Envio da mensagem
+        radio.write(message)
+        print("Mensagem enviada:", "".join(chr(x) for x in message if x != 0))
+        
+    except Exception as e:
+        print(f"Erro ao enviar mensagem: {e}")
 
 def receber_mensagem():
     if radio.available():
-        recebido = radio.read(radio.get_payload_size())  # Corrigido de getDynamicPayloadSize
-        print("Recebido:", "".join(map(chr, filter(None, recebido))))
+        # Lendo a mensagem
+        recebido = radio.read(radio.get_payload_size())
+        # Convertendo bytes para string, removendo zeros
+        mensagem = "".join(chr(x) for x in recebido if x != 0)
+        print("Recebido:", mensagem)
 
-# Script de teste
+# Script principal
 try:
     print("Iniciando teste do módulo NRF24L01...")
     print("\nConexões utilizadas:")
@@ -71,6 +96,8 @@ try:
 
 except KeyboardInterrupt:
     print("\nPrograma interrompido pelo usuário")
+except Exception as e:
+    print(f"Erro: {e}")
 finally:
     GPIO.cleanup()
     spi.close()
