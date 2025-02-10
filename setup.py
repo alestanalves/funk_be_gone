@@ -1,6 +1,5 @@
 import RPi.GPIO as GPIO
-from lib_nrf24 import NRF24
-import spidev
+from nrf24 import NRF24
 import time
 
 # Configuração do modo de numeração dos pinos (BCM)
@@ -12,9 +11,7 @@ CE_PIN = 22    # GPIO 22 - Chip Enable
 CSN_PIN = 5    # GPIO 5 - Chip Select
 
 # Inicialização do rádio NRF24
-radio = NRF24(GPIO, spidev.SpiDev())
-radio.spi.open(0, 0)  # Bus 0, Device 0
-radio.spi.max_speed_hz = 8000000
+radio = NRF24(CE_PIN, CSN_PIN)
 
 def testar_pinos_nrf24():
     print("--- Testando pinos do NRF24 ---")
@@ -42,8 +39,8 @@ def testar_pinos_nrf24():
 def testar_comunicacao_spi():
     print("--- Testando comunicação SPI ---")
 
-    # Enviar e receber um valor de teste
-    response = radio.spi.xfer2([0x00])
+    # Enviar e receber um valor de teste usando o SPI direto
+    response = radio.spi_transfer([0xFF])
     if response[0] != 0:
         print("Comunicação SPI verificada com sucesso. Valor retornado:", hex(response[0]))
     else:
@@ -67,7 +64,7 @@ def testar_comunicacao_nrf24():
 def testar_resposta_registros():
     print("--- Testando resposta de registros do NRF24 ---")
     # Ler o registro CONFIG do NRF24
-    config_reg = radio.read_register(radio.CONFIG)
+    config_reg = radio.read_register(NRF24.CONFIG)
     print(f"Registro CONFIG: 0x{config_reg:02X}")
 
     if config_reg == 0x00:
