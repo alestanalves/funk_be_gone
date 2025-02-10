@@ -1,5 +1,5 @@
 import pigpio
-from nrf24 import NRF24
+from nrf24 import NRF24, RF24_PA, RF24_DATA_RATE, RF24_PAYLOAD, SPI_CHANNEL
 import time
 
 # Inicializar o cliente pigpio
@@ -9,24 +9,26 @@ if not pi.connected:
     exit()
 
 # Definição dos pinos
-CE_PIN = 22    # GPIO 22 - Chip Enable
-CSN_PIN = 5    # GPIO 5 - Chip Select (é definido diretamente na SPI)
+CE_PIN = 22  # GPIO 22 - Chip Enable
+CSN_PIN = 5  # GPIO 5 (CSN é configurado via SPI)
 
 # Inicialização do rádio NRF24
-radio = NRF24(pi, CE_PIN)  # Passa apenas o pino CE
+radio = NRF24(
+    pi,
+    ce=CE_PIN,
+    payload_size=RF24_PAYLOAD.DYNAMIC,
+    channel=45,
+    data_rate=RF24_DATA_RATE.RATE_2MBPS,
+    pa_level=RF24_PA.MAX
+)
 
-# Configuração SPI
-radio.spi = pi.spi_open(0, 8000000, 0)  # Abrir SPI no canal 0 com 8 MHz e modo 0
-
-# Configurações do rádio
-radio.set_channel(45)
-radio.set_payload_size(32)
-radio.set_pa_level(NRF24.PA_MAX)
-radio.set_data_rate(NRF24.BR_2MBPS)
-radio.set_retries(15, 15)
+# Configurações adicionais
+radio.set_address_bytes(5)
+radio.open_writing_pipe("1NODE")
 
 def testar_comunicacao_nrf24():
     print("--- Testando comunicação com o chip NRF24 ---")
+    radio.show_registers()
     status = radio.get_status()
     if status != 0x00:
         print("O chip NRF24 está conectado e respondendo corretamente.")
@@ -60,5 +62,5 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("\nPrograma interrompido pelo usuário.")
     finally:
-        pi.spi_close(radio.spi)
+        radio.power_down()
         pi.stop()  # Desconectar do pigpio
