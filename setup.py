@@ -3,15 +3,18 @@ from lib_nrf24 import NRF24
 import spidev
 import time
 
-# Configuração do modo de numeração dos pinos (BCM)
+# Configuração do modo de numeração dos pinos (BCM) e avisos
 GPIO.setmode(GPIO.BCM)
+GPIO.setwarnings(False)
 
-# Definição dos pinos para o NRF24L01
+# Definição dos pinos do NRF24L01
 CE_PIN = 22    # GPIO 22 - Chip Enable
 CSN_PIN = 5    # GPIO 5 - Chip Select
 
 # Inicialização do rádio NRF24
 radio = NRF24(GPIO, spidev.SpiDev())
+radio.spi.open(0, 0)  # Bus 0, Device 0
+radio.spi.max_speed_hz = 8000000
 radio.begin(CE_PIN, CSN_PIN)
 
 # Lista de canais para hopping
