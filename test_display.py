@@ -3,28 +3,28 @@ from PIL import Image, ImageDraw, ImageFont
 import board
 import adafruit_ssd1306
 
-# Configurar a interface I2C manualmente
-i2c = board.I2C()  # Usar GPIO 2 (SDA) e GPIO 3 (SCL)
+# Configurar a interface I2C
+i2c = board.I2C()  # GPIO 2 (SDA) e GPIO 3 (SCL)
 
-# Inicializar a tela OLED
-oled = adafruit_ssd1306.SSD1306_I2C(128, 64, i2c, addr=0x3C)
+# Inicializar o display OLED
+oled = adafruit_ssd1306.SSD1306_I2C(128, 64, i2c)
 
-# Criar uma imagem para desenhar
+# Criar imagem para desenhar
 image = Image.new('1', (oled.width, oled.height))
 draw = ImageDraw.Draw(image)
 
 # Limpar a tela
 draw.rectangle((0, 0, oled.width, oled.height), outline=0, fill=0)
 
-# Exibir texto
+# Desenhar texto
 font = ImageFont.load_default()
 draw.text((10, 10), "Teste OLED OK!", font=font, fill=255)
 
-# Enviar imagem para a tela
+# Enviar imagem para o display
 oled.image(image)
 oled.show()
 
-# Aguardar antes de limpar a tela
+# Esperar 10 segundos antes de limpar
 time.sleep(10)
 oled.fill(0)
 oled.show()
