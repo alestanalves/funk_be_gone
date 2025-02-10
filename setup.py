@@ -75,12 +75,12 @@ def testar_comunicacao_nrf24():
     print("--- Teste de comunicação concluído ---\n")
 
 def nrf_start():
-    radio.setPayloadSize(32)
+    radio.set_payload_size(32)
     radio.setChannel(45)
-    radio.setPALevel(NRF24.PA_MAX)
-    radio.setDataRate(NRF24.BR_2MBPS)
+    radio.set_pa_level(NRF24.PA_MAX)
+    radio.set_data_rate(NRF24.BR_2MBPS)
     radio.setAutoAck(False)
-    radio.openWritingPipe([0xE8, 0xE8, 0xF0, 0xF0, 0xE1])
+    radio.open_writing_pipe([0xE8, 0xE8, 0xF0, 0xF0, 0xE1])
 
     return True
 
