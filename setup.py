@@ -65,7 +65,7 @@ def testar_comunicacao_nrf24():
     print("--- Testando comunicação com o chip NRF24 ---")
     
     # Lendo o registro STATUS do chip NRF24
-    status = radio.read_register(radio.STATUS)
+    status = radio.get_status()
     if status != 0x00:  # Espera-se que o registro STATUS não seja zero
         print("O chip NRF24 está conectado e respondendo corretamente.")
         print(f"Registro STATUS: 0x{status:02X}")
@@ -76,11 +76,13 @@ def testar_comunicacao_nrf24():
 
 def nrf_start():
     radio.set_payload_size(32)
-    radio.setChannel(45)
+    radio.set_channel(45)
     radio.set_pa_level(NRF24.PA_MAX)
     radio.set_data_rate(NRF24.BR_2MBPS)
-    radio.setAutoAck(False)
-    radio.open_writing_pipe([0xE8, 0xE8, 0xF0, 0xF0, 0xE1])
+    radio.set_retries(15, 15)
+
+    # Definir o endereço de escrita
+    radio.write_register(NRF24.TX_ADDR, [0xE8, 0xE8, 0xF0, 0xF0, 0xE1])
 
     return True
 
@@ -96,7 +98,7 @@ def nrf_jammer():
                 ptr_hop = 0  # Reiniciar o índice se atingir o final da lista
 
             # Alterar o canal do rádio
-            radio.setChannel(hopping_channels[ptr_hop])
+            radio.set_channel(hopping_channels[ptr_hop])
             print("Canal atual:", hopping_channels[ptr_hop])
 
             # Pequeno delay para hopping
