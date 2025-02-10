@@ -1,49 +1,59 @@
-# Código do receptor
-import RPi.GPIO as GPIO
-from lib_nrf24 import NRF24
-import time
-import spidev
+import machine
+import utime
+from nrf24l01 import NRF24L01
 
-# Mesma configuração de pinos
-CE_PIN = 2
-CSN_PIN = 5
-SCK_PIN = 6
-MOSI_PIN = 7
-MISO_PIN = 4
+# Configuração dos pinos do Raspberry Pi Pico ou MicroPython board
+spi = machine.SPI(0, baudrate=4000000, polarity=0, phase=0, sck=machine.Pin(2), mosi=machine.Pin(3), miso=machine.Pin(4))
+csn = machine.Pin(5, machine.Pin.OUT)
+ce = machine.Pin(0, machine.Pin.OUT)
 
-GPIO.setmode(GPIO.BCM)
-pipes = [[0xF0, 0xF0, 0xF0, 0xF0, 0xE1], [0xE8, 0xE8, 0xF0, 0xF0, 0xE1]]
+# Inicialização do módulo NRF24L01
+nrf = NRF24L01(spi, csn, ce, channel=76, payload_size=32)
 
-spi = spidev.SpiDev()
-spi.open(0, 0)
-spi.max_speed_hz = 1000000
+# Endereço de comunicação (5 bytes)
+address = b'1NODE'
 
-radio = NRF24(GPIO, spi)
-radio.begin(CE_PIN, CSN_PIN)
+# Configuração do transmissor
+nrf.open_tx_pipe(address)
+nrf.open_rx_pipe(1, address)
 
-radio.setPayloadSize(32)
-radio.setChannel(0x76)
-radio.setDataRate(NRF24.BR_1MBPS)
-radio.setPALevel(NRF24.PA_MIN)
-radio.setAutoAck(True)
-radio.enableDynamicPayloads()
-radio.enableAckPayload()
+def enviar_mensagem():
+    try:
+        # Dados a serem enviados
+        mensagem = b"Hello NRF!"
+        print("Enviando mensagem:", mensagem)
 
-radio.openWritingPipe(pipes[0])
-radio.openReadingPipe(1, pipes[1])
-radio.printDetails()
-radio.startListening()
+        # Iniciar o envio
+        nrf.send(mensagem)
+        print("Mensagem enviada com sucesso.")
 
-try:
-    print("Receptor iniciado. Aguardando mensagens...")
+    except OSError as e:
+        print("Erro ao enviar mensagem:", e)
+
+def testar_comunicacao():
+    # Exibir registros do NRF24
+    print("--- Configuração e registros do NRF24 ---")
+    try:
+        nrf.start_listening()
+        registros = {
+            "CONFIG": nrf.reg_read(CONFIG),
+            "STATUS": nrf.reg_read(STATUS),
+            "RF_CH": nrf.reg_read(RF_CH),
+            "TX_ADDR": nrf.reg_read(TX_ADDR)
+        }
+        for reg, valor in registros.items():
+            print(f"{reg}: 0x{valor:02X}")
+
+        nrf.stop_listening()
+    except Exception as e:
+        print("Erro ao acessar registros do NRF24:", e)
+
+# Função principal
+def main():
+    testar_comunicacao()
     while True:
-        if radio.available():
-            recebido = []
-            radio.read(recebido, radio.getDynamicPayloadSize())
-            print("Recebido:", "".join(map(chr, filter(None, recebido))))
-        time.sleep(0.1)
-except KeyboardInterrupt:
-    print("\nPrograma interrompido pelo usuário")
-finally:
-    GPIO.cleanup()
-    spi.close()
+        enviar_mensagem()
+        utime.sleep(2)
+
+if __name__ == "__main__":
+    main()
