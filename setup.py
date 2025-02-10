@@ -10,10 +10,15 @@ if not pi.connected:
 
 # Definição dos pinos
 CE_PIN = 22    # GPIO 22 - Chip Enable
-CSN_PIN = 5    # GPIO 5 - Chip Select
+CSN_PIN = 5    # GPIO 5 - Chip Select (é definido diretamente na SPI)
 
 # Inicialização do rádio NRF24
-radio = NRF24(pi, ce=CE_PIN, csn=CSN_PIN)
+radio = NRF24(pi, CE_PIN)  # Passa apenas o pino CE
+
+# Configuração SPI
+radio.spi = pi.spi_open(0, 8000000, 0)  # Abrir SPI no canal 0 com 8 MHz e modo 0
+
+# Configurações do rádio
 radio.set_channel(45)
 radio.set_payload_size(32)
 radio.set_pa_level(NRF24.PA_MAX)
@@ -55,4 +60,5 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("\nPrograma interrompido pelo usuário.")
     finally:
+        pi.spi_close(radio.spi)
         pi.stop()  # Desconectar do pigpio
