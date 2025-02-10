@@ -1,61 +1,97 @@
 import spidev
 import RPi.GPIO as GPIO
 import time
-from nrf24l01 import NRF24L01
 
-# Configuração dos pinos do Raspberry Pi
-CE_PIN = 22  # GPIO 22 para CE
-CSN_PIN = 8  # GPIO 8 para CSN (SPI Chip Select)
+# NRF24L01 comandos e registros
+CONFIG = 0x00
+RF_CH = 0x05
+STATUS = 0x07
+TX_ADDR = 0x10
+W_TX_PAYLOAD = 0xA0
+FLUSH_TX = 0xE1
+PWR_UP = 0x02
 
-# Configuração SPI
+# Configuração de pinos
+CE_PIN = 22   # GPIO 22 para CE
+CSN_PIN = 8   # GPIO 8 para CSN
+
+# Inicializar SPI e GPIO
 spi = spidev.SpiDev()
 spi.open(0, 0)  # Bus 0, Device 0
 spi.max_speed_hz = 4000000
 
-# Configuração GPIO para CE
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(CE_PIN, GPIO.OUT)
+GPIO.setup(CSN_PIN, GPIO.OUT)
 
-# Inicialização do NRF24L01
-nrf = NRF24L01(spi, cs=GPIO.output, ce=lambda level: GPIO.output(CE_PIN, level), channel=76, payload_size=32)
+def ce_high():
+    GPIO.output(CE_PIN, GPIO.HIGH)
 
-# Configuração dos endereços de comunicação
-address = b'1NODE'
-nrf.open_tx_pipe(address)
-nrf.open_rx_pipe(1, address)
+def ce_low():
+    GPIO.output(CE_PIN, GPIO.LOW)
 
-def enviar_mensagem():
-    try:
-        # Mensagem a ser enviada
-        mensagem = b"Hello from RPi"
-        print("Enviando mensagem:", mensagem)
+def csn_high():
+    GPIO.output(CSN_PIN, GPIO.HIGH)
 
-        # Iniciar o envio
-        nrf.send(mensagem)
-        print("Mensagem enviada com sucesso.")
+def csn_low():
+    GPIO.output(CSN_PIN, GPIO.LOW)
 
-    except OSError as e:
-        print("Erro ao enviar mensagem:", e)
+def reg_write(reg, value):
+    csn_low()
+    spi.xfer2([0x20 | reg, value])
+    csn_high()
+
+def reg_read(reg):
+    csn_low()
+    resp = spi.xfer2([reg, 0xFF])
+    csn_high()
+    return resp[1]
+
+def flush_tx():
+    csn_low()
+    spi.xfer2([FLUSH_TX])
+    csn_high()
+
+def enviar_mensagem(mensagem):
+    ce_low()
+    flush_tx()
+
+    # Escrever payload
+    csn_low()
+    spi.xfer2([W_TX_PAYLOAD] + list(mensagem))
+    csn_high()
+
+    # Ativar envio
+    ce_high()
+    time.sleep(0.01)
+    ce_low()
 
 def testar_comunicacao():
-    # Exibir registros do NRF24L01
-    print("--- Configuração e registros do NRF24L01 ---")
-    try:
-        registros = {
-            "CONFIG": nrf.reg_read(nrf.CONFIG),
-            "STATUS": nrf.reg_read(nrf.STATUS),
-            "RF_CH": nrf.reg_read(nrf.RF_CH),
-            "TX_ADDR": nrf.reg_read(nrf.TX_ADDR)
-        }
-        for reg, valor in registros.items():
-            print(f"{reg}: 0x{valor:02X}")
-    except Exception as e:
-        print("Erro ao acessar registros do NRF24L01:", e)
+    print("--- Testando comunicação com o NRF24L01 ---")
+    status = reg_read(STATUS)
+    print(f"Registro STATUS: 0x{status:02X}")
+
+    if status == 0x00:
+        print("Erro: O chip NRF24 não está respondendo corretamente.")
+    else:
+        print("O chip NRF24 está conectado e respondendo corretamente.")
+
+def setup_nrf():
+    # Configurar o rádio
+    reg_write(CONFIG, PWR_UP)
+    reg_write(RF_CH, 76)  # Configurar canal
+    reg_write(TX_ADDR, 0xE7)  # Definir endereço de envio
+
+    time.sleep(0.1)
 
 def main():
+    setup_nrf()
     testar_comunicacao()
+
     while True:
-        enviar_mensagem()
+        mensagem = b"Hello NRF24!"
+        print("Enviando mensagem:", mensagem)
+        enviar_mensagem(mensagem)
         time.sleep(2)
 
 if __name__ == "__main__":
