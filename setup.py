@@ -1,110 +1,74 @@
 import RPi.GPIO as GPIO
 from lib_nrf24 import NRF24
-import time
 import spidev
-import random
+import time
 
-# Mapeamento dos pinos
-CE_PIN = 2    # GP2
-CSN_PIN = 5   # GP5
-SCK_PIN = 6   # GP6
-MOSI_PIN = 7  # GP7
-MISO_PIN = 4  # GP4
+# Definição dos pinos no Raspberry Pi
+CE_PIN = 22      # GPIO22 (pino físico 15)
+CSN_PIN = 25     # GPIO25 (pino físico 22)
+SCK_PIN = 11     # SPI SCK padrão (pino físico 23)
+MOSI_PIN = 10    # SPI MOSI padrão (pino físico 19)
+MISO_PIN = 9     # SPI MISO padrão (pino físico 21)
 
-# Configuração dos pinos
-GPIO.setmode(GPIO.BCM)
-
-# Configuração do SPI
-spi = spidev.SpiDev()
-spi.open(0, 0)
-spi.max_speed_hz = 1000000
-
-# Configuração do rádio
-radio = NRF24(GPIO, spi)
+# Inicialização do rádio NRF24
+radio = NRF24(GPIO, spidev.SpiDev())
 radio.begin(CE_PIN, CSN_PIN)
 
-# Configurações básicas
-radio.set_payload_size(32)
-radio.set_channel(0x76)  # Canal inicial
-radio.set_data_rate(NRF24.BR_1MBPS)
-radio.set_pa_level(NRF24.PA_MAX)
+# Lista de canais para hopping
+hopping_channels = [32, 34, 46, 48, 50, 52, 0, 1, 2, 4, 6, 8, 22, 24, 26, 28, 30, 74, 76, 78, 80, 82, 84, 86]
+ptr_hop = 0
 
-# Canais disponíveis para jamming
-bluetooth_channels = [32, 34, 46, 48, 50, 52, 0, 1, 2, 4, 6, 8, 22, 24, 26, 28, 30, 74, 76, 78, 80]
-ble_channels = [2, 26, 80]
+# Configuração inicial do GPIO
+GPIO.setmode(GPIO.BCM)
 
-def configure_radio(channel):
-    """Configura o rádio para um canal específico."""
-    radio.set_channel(channel)
+def testar_pinos_nrf24():
+    print("--- Testando pinos do NRF24 ---")
 
-def jam_ble():
-    """Jamming em canais BLE."""
-    channel = random.choice(ble_channels)
-    print(f"Jamming BLE no canal {channel}")
-    configure_radio(channel)
-
-def jam_bluetooth():
-    """Jamming em canais Bluetooth."""
-    channel = random.choice(bluetooth_channels)
-    print(f"Jamming Bluetooth no canal {channel}")
-    configure_radio(channel)
-
-def jam_all():
-    """Jamming em canais Bluetooth e BLE aleatoriamente."""
-    if random.choice([True, False]):
-        jam_bluetooth()
+    # Testar pino CE
+    GPIO.setup(CE_PIN, GPIO.OUT)
+    GPIO.output(CE_PIN, GPIO.HIGH)
+    time.sleep(0.01)
+    if GPIO.input(CE_PIN) == GPIO.HIGH:
+        print("Pino CE está funcionando corretamente.")
     else:
-        jam_ble()
+        print("Erro: Pino CE não está respondendo.")
 
-def verificar_radio():
-    """Verifica se o módulo NRF24 está funcionando corretamente."""
-    print("Verificando módulo NRF24...")
-
-    # Leitura do registro STATUS
-    status = radio.get_status()
-    print(f"Registro STATUS: 0x{status:02X}")
-
-    # Verifica se o valor é válido (o valor padrão deve estar entre 0x0E e 0x0F)
-    if status & 0x0E == 0x0E:
-        print("Módulo NRF24 conectado e respondendo corretamente.")
+    # Testar pino CSN
+    GPIO.setup(CSN_PIN, GPIO.OUT)
+    GPIO.output(CSN_PIN, GPIO.HIGH)
+    time.sleep(0.01)
+    if GPIO.input(CSN_PIN) == GPIO.HIGH:
+        print("Pino CSN está funcionando corretamente.")
     else:
-        print("Aviso: O registro STATUS não indica uma resposta correta. Verifique as conexões.")
+        print("Erro: Pino CSN não está respondendo.")
 
-    # Teste de leitura/escrita de registro
-    try:
-        radio.write_register(NRF24.CONFIG, 0x0A)
-        config_value = radio.read_register(NRF24.CONFIG)
-        if config_value == 0x0A:
-            print("Teste de escrita/leitura no registro CONFIG bem-sucedido.")
-        else:
-            print("Erro: Falha na verificação de escrita/leitura no registro CONFIG.")
-    except Exception as e:
-        print(f"Erro durante a verificação do rádio: {e}")
+    print("--- Teste de pinos concluído ---\n")
 
-# Script principal
-try:
-    print("Iniciando jamming com o módulo NRF24L01...")
+def testar_comunicacao_spi():
+    print("--- Testando comunicação SPI ---")
 
-    # Verificação inicial do rádio
-    verificar_radio()
+    # Configurar SPI
+    spi = spidev.SpiDev()
+    spi.open(0, 0)  # Bus 0, device 0 (pinos padrão)
+    spi.max_speed_hz = 8000000
 
-    while True:
-        # Alterna entre diferentes modos de jamming
-        mode = random.choice(["ble", "bluetooth", "all"])
-        if mode == "ble":
-            jam_ble()
-        elif mode == "bluetooth":
-            jam_bluetooth()
-        elif mode == "all":
-            jam_all()
+    # Enviar um valor de teste e verificar a resposta
+    test_value = [0xAA]
+    response = spi.xfer2(test_value)
 
-        # Aguarda 1 segundo antes de repetir
-        time.sleep(1)
+    if response[0] != 0:
+        print("Comunicação SPI verificada com sucesso.")
+        print(f"Valor retornado: 0x{response[0]:02X}")
+    else:
+        print("Erro na comunicação SPI. Verifique os pinos MOSI, MISO e SCK.")
 
-except KeyboardInterrupt:
-    print("\nPrograma interrompido pelo usuário")
-except Exception as e:
-    print(f"Erro: {e}")
-finally:
-    GPIO.cleanup()
     spi.close()
+    print("--- Teste de comunicação SPI concluído ---\n")
+
+def testar_comunicacao_rf24():
+    print("--- Testando comunicação com o NRF24 ---")
+    if radio.is_chip_connected():
+        print("O chip NRF24 está conectado e respondendo corretamente.")
+    else:
+        print("Erro: O chip NRF24 não está respondendo corretamente.")
+    print("--- Teste de comunicação 
