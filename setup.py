@@ -7,7 +7,7 @@ import time
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
 
-# Definição dos pinos do NRF24L01
+# Definição dos pinos para o NRF24L01
 CE_PIN = 22    # GPIO 22 - Chip Enable
 CSN_PIN = 5    # GPIO 5 - Chip Select
 
@@ -63,10 +63,15 @@ def testar_comunicacao_spi():
 
 def testar_comunicacao_nrf24():
     print("--- Testando comunicação com o chip NRF24 ---")
-    if radio.is_chip_connected():
+    
+    # Lendo o registro STATUS do chip NRF24
+    status = radio.read_register(radio.STATUS)
+    if status != 0x00:  # Espera-se que o registro STATUS não seja zero
         print("O chip NRF24 está conectado e respondendo corretamente.")
+        print(f"Registro STATUS: 0x{status:02X}")
     else:
         print("Erro: O chip NRF24 não está respondendo corretamente.")
+    
     print("--- Teste de comunicação concluído ---\n")
 
 def nrf_start():
