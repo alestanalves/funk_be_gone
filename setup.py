@@ -3,12 +3,15 @@ from lib_nrf24 import NRF24
 import spidev
 import time
 
-# Definição dos pinos do Raspberry Pi
-CE_PIN = 22    # Pino GPIO 22 para CE
-CSN_PIN = 5    # Pino GPIO 5 para CSN
-SCK_PIN = 11   # SPI SCK (pino físico 23)
-MOSI_PIN = 10  # SPI MOSI (pino físico 19)
-MISO_PIN = 9   # SPI MISO (pino físico 21)
+# Configuração do modo de numeração dos pinos (BCM)
+GPIO.setmode(GPIO.BCM)
+
+# Definição dos pinos do Raspberry Pi (GPIO)
+CE_PIN = 22    # GPIO 22
+CSN_PIN = 5    # GPIO 5 (Chip Select)
+SCK_PIN = 11   # GPIO 11 (SPI SCK)
+MOSI_PIN = 10  # GPIO 10 (SPI MOSI)
+MISO_PIN = 9   # GPIO 9 (SPI MISO)
 
 # Inicialização do rádio NRF24
 radio = NRF24(GPIO, spidev.SpiDev())
@@ -39,19 +42,24 @@ def testar_pinos_nrf24():
     else:
         print("Erro: Pino CSN não está respondendo.")
 
-    # Teste de comunicação SPI
+    print("--- Teste de pinos concluído ---\n")
+
+def testar_comunicacao_spi():
     print("--- Testando comunicação SPI ---")
+    
     spi = spidev.SpiDev()
     spi.open(0, 0)  # Bus 0, Device 0 (dependendo do seu setup)
     spi.max_speed_hz = 8000000
+    
+    # Enviar e receber um valor de teste
     response = spi.xfer2([0xAA])
     if response[0] != 0:
         print("Comunicação SPI verificada com sucesso. Valor retornado:", hex(response[0]))
     else:
         print("Erro na comunicação SPI. Verifique os pinos MOSI, MISO e SCK.")
+    
     spi.close()
-
-    print("--- Teste de pinos concluído ---\n")
+    print("--- Teste de comunicação SPI concluído ---\n")
 
 def testar_comunicacao_nrf24():
     print("--- Testando comunicação com o chip NRF24 ---")
@@ -76,8 +84,8 @@ def nrf_jammer():
         print("NRF24 inicializado. Iniciando jammer...")
 
         # Ativar transmissão contínua
+        global ptr_hop
         while True:
-            global ptr_hop
             ptr_hop += 1
             if ptr_hop >= len(hopping_channels):
                 ptr_hop = 0  # Reiniciar o índice se atingir o final da lista
@@ -92,10 +100,9 @@ def nrf_jammer():
         print("Erro ao iniciar o jammer. Verifique as conexões.")
 
 def setup():
-    GPIO.setmode(GPIO.BCM)
-
     # Testar pinos e comunicação
     testar_pinos_nrf24()
+    testar_comunicacao_spi()
     testar_comunicacao_nrf24()
 
     # Iniciar o jammer
@@ -107,4 +114,4 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("\nPrograma interrompido pelo usuário.")
     finally:
-        GPIO.cleanup()
+        GPIO.cleanup()  # Limpar configuração dos pinos
