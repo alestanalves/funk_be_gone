@@ -3,7 +3,7 @@ from lib_nrf24 import NRF24
 import spidev
 import time
 
-# Configuração do modo de numeração dos pinos (BCM) e avisos
+# Configuração do modo de numeração dos pinos (BCM)
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
 
@@ -15,11 +15,6 @@ CSN_PIN = 5    # GPIO 5 - Chip Select
 radio = NRF24(GPIO, spidev.SpiDev())
 radio.spi.open(0, 0)  # Bus 0, Device 0
 radio.spi.max_speed_hz = 8000000
-radio.begin(CE_PIN, CSN_PIN)
-
-# Lista de canais para hopping
-hopping_channels = [32, 34, 46, 48, 50, 52, 0, 1, 2, 4, 6, 8, 22, 24, 26, 28, 30, 74, 76, 78, 80, 82, 84, 86]
-ptr_hop = 0
 
 def testar_pinos_nrf24():
     print("--- Testando pinos do NRF24 ---")
@@ -46,33 +41,56 @@ def testar_pinos_nrf24():
 
 def testar_comunicacao_spi():
     print("--- Testando comunicação SPI ---")
-    
-    spi = spidev.SpiDev()
-    spi.open(0, 0)  # Bus 0, Device 0
-    spi.max_speed_hz = 8000000
-    
+
     # Enviar e receber um valor de teste
-    response = spi.xfer2([0xAA])
+    response = radio.spi.xfer2([0x00])
     if response[0] != 0:
         print("Comunicação SPI verificada com sucesso. Valor retornado:", hex(response[0]))
     else:
         print("Erro na comunicação SPI. Verifique as conexões do SPI.")
-    
-    spi.close()
+
     print("--- Teste de comunicação SPI concluído ---\n")
 
 def testar_comunicacao_nrf24():
     print("--- Testando comunicação com o chip NRF24 ---")
-    
-    # Lendo o registro STATUS do chip NRF24
+
+    # Ler o registro STATUS do NRF24 para verificar se está respondendo
     status = radio.get_status()
-    if status != 0x00:  # Espera-se que o registro STATUS não seja zero
+    if status != 0x00:
         print("O chip NRF24 está conectado e respondendo corretamente.")
         print(f"Registro STATUS: 0x{status:02X}")
     else:
         print("Erro: O chip NRF24 não está respondendo corretamente.")
-    
+
     print("--- Teste de comunicação concluído ---\n")
+
+def testar_resposta_registros():
+    print("--- Testando resposta de registros do NRF24 ---")
+    # Ler o registro CONFIG do NRF24
+    config_reg = radio.read_register(radio.CONFIG)
+    print(f"Registro CONFIG: 0x{config_reg:02X}")
+
+    if config_reg == 0x00:
+        print("Erro: Registro CONFIG não retornou uma resposta válida. Verifique as conexões.")
+    else:
+        print("Resposta válida do registro CONFIG detectada.")
+
+    print("--- Teste de resposta de registros concluído ---\n")
+
+def setup():
+    # Testar pinos, comunicação e registros
+    testar_pinos_nrf24()
+    testar_comunicacao_spi()
+    testar_comunicacao_nrf24()
+    testar_resposta_registros()
+
+    # Apenas continuar se o NRF24 estiver funcionando corretamente
+    if radio.get_status() == 0x00:
+        print("Erro crítico: O chip NRF24 não está funcionando. Interrompendo...")
+        return
+
+    # Iniciar o jammer
+    nrf_jammer()
 
 def nrf_start():
     radio.set_payload_size(32)
@@ -92,6 +110,9 @@ def nrf_jammer():
 
         # Ativar transmissão contínua
         global ptr_hop
+        hopping_channels = [32, 34, 46, 48, 50, 52, 0, 1, 2, 4, 6, 8, 22, 24, 26, 28, 30, 74, 76, 78, 80, 82, 84, 86]
+        ptr_hop = 0
+
         while True:
             ptr_hop += 1
             if ptr_hop >= len(hopping_channels):
@@ -105,15 +126,6 @@ def nrf_jammer():
             time.sleep(0.2)
     else:
         print("Erro ao iniciar o jammer. Verifique as conexões.")
-
-def setup():
-    # Testar pinos e comunicação
-    testar_pinos_nrf24()
-    testar_comunicacao_spi()
-    testar_comunicacao_nrf24()
-
-    # Iniciar o jammer
-    nrf_jammer()
 
 if __name__ == "__main__":
     try:
