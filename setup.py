@@ -10,7 +10,6 @@ if not pi.connected:
 
 # Definição dos pinos
 CE_PIN = 22  # GPIO 22 - Chip Enable
-CSN_PIN = 5  # GPIO 5 (CSN é configurado via SPI)
 
 # Inicialização do rádio NRF24
 radio = NRF24(
@@ -22,9 +21,13 @@ radio = NRF24(
     pa_level=RF24_PA.MAX
 )
 
-# Configurações adicionais
+# Configuração completa do rádio
 radio.set_address_bytes(5)
 radio.open_writing_pipe("1NODE")
+radio.open_reading_pipe(1, "2NODE")
+radio.set_retries(15, 15)
+radio.enable_dynamic_payloads()
+radio.enable_auto_ack()
 
 def testar_comunicacao_nrf24():
     print("--- Testando comunicação com o chip NRF24 ---")
