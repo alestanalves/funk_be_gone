@@ -6,12 +6,9 @@ import time
 # Configuração do modo de numeração dos pinos (BCM)
 GPIO.setmode(GPIO.BCM)
 
-# Definição dos pinos do Raspberry Pi (GPIO)
-CE_PIN = 22    # GPIO 22
-CSN_PIN = 5    # GPIO 5 (Chip Select)
-SCK_PIN = 11   # GPIO 11 (SPI SCK)
-MOSI_PIN = 10  # GPIO 10 (SPI MOSI)
-MISO_PIN = 9   # GPIO 9 (SPI MISO)
+# Definição dos pinos para o NRF24L01
+CE_PIN = 22    # GPIO 22 - Chip Enable
+CSN_PIN = 5    # GPIO 5 - Chip Select
 
 # Inicialização do rádio NRF24
 radio = NRF24(GPIO, spidev.SpiDev())
@@ -48,7 +45,7 @@ def testar_comunicacao_spi():
     print("--- Testando comunicação SPI ---")
     
     spi = spidev.SpiDev()
-    spi.open(0, 0)  # Bus 0, Device 0 (dependendo do seu setup)
+    spi.open(0, 0)  # Bus 0, Device 0
     spi.max_speed_hz = 8000000
     
     # Enviar e receber um valor de teste
@@ -56,7 +53,7 @@ def testar_comunicacao_spi():
     if response[0] != 0:
         print("Comunicação SPI verificada com sucesso. Valor retornado:", hex(response[0]))
     else:
-        print("Erro na comunicação SPI. Verifique os pinos MOSI, MISO e SCK.")
+        print("Erro na comunicação SPI. Verifique as conexões do SPI.")
     
     spi.close()
     print("--- Teste de comunicação SPI concluído ---\n")
